@@ -1,0 +1,688 @@
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Sorting Visualizer</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background: #000000;
+        color: white;
+        text-align: center;
+      }
+
+      #bars {
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        height: 250px;
+        margin-top: 20px;
+        position: relative;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .bar-wrapper {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .arrow {
+        font-size: 24px;
+        margin-bottom: 5px;
+        animation-duration: 0.6s;
+        animation-iteration-count: infinite;
+      }
+
+      .compare-arrow {
+        animation-name: float;
+        color: #fdd835;
+      }   
+
+      .swap-arrow {
+        animation-name: bounce;
+        color: #ef5350;
+      }
+
+      @keyframes float {
+        0% { transform: translateY(0); }
+        50% { transform: translateY(-5px); }
+        100% { transform: translateY(0); }
+      }
+
+      @keyframes bounce {
+        0% { transform: translateY(0); }
+        25% { transform: translateY(-8px); }
+        50% { transform: translateY(0); }
+        75% { transform: translateY(-4px); }
+        100% { transform: translateY(0); }
+      }
+
+      .bar {
+        background-color: limegreen;
+        width: 40px;
+        height: 40px;
+        border-radius: 6px;
+        font-size: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: rgb(183, 15, 15);
+        font-weight: bold;
+      }
+
+      .bar.compare {
+        background-color: #fdd835;
+      }
+
+      .bar.swap {
+        background-color: #7e2307;
+      }
+
+      .bar.sorted {
+        background-color: #2196f3; /* Blue for sorted elements */
+      }
+
+      button, select, input {
+        margin: 10px;
+        padding: 5px 10px;
+      }
+
+      #complexity-box {
+        margin-top: 20px;
+        background-color: #333;
+        border: 2px solid #fdd835;
+        border-radius: 50px;
+        padding: 15px;
+        width: 700px;
+        margin-left: auto;
+        margin-right: auto;
+        text-align: center;
+        font-size: 17px;
+        line-height: 1.5;
+        color: #fff;
+        box-shadow: 0 0 10px #fdd835;
+        display: none; /* Initially hidden */
+      }
+
+      #complexity-box.show {
+        display: block; /* Show when populated */
+      }
+
+      #custom-array {
+        width: 300px;
+        padding: 5px;
+      }
+
+      .error {
+        color: #ef5350;
+        font-size: 14px;
+        margin-top: 5px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Sorting Visualizer</h1>
+
+    <div>
+      <label for="size">Size:</label>
+      <input type="number" id="size" value="10" min="5" max="100" />
+      <label for="algorithm">Algorithm:</label>
+      <select id="algorithm">
+        <option value="bubbleSort">Bubble Sort</option>
+        <option value="insertionSort">Insertion Sort</option>
+        <option value="selectionSort">Selection Sort</option>
+        <option value="countingSort">Counting Sort</option>
+        <option value="quickSort">Quick Sort</option>
+        <option value="mergeSort">Merge Sort</option>
+        <option value="heapSort">Heap Sort</option>
+      </select>
+      <label for="speed">Speed (ms):</label>
+      <input type="number" id="speed" value="300" min="10" max="1500" />
+      <br />
+      <label for="custom-array">Custom Array (comma-separated):</label>
+      <input type="text" id="custom-array" placeholder="e.g., 5,2,8,1,9" />
+      <div id="error-message" class="error"></div>
+      <br />
+      <button id="generate-random" onclick="generateArray()">Generate Random</button>
+      <button id="use-custom" onclick="useCustomArray()">Use Custom Array</button>
+      <button id="sort-ascending" onclick="sortAscending()">Sort Ascending</button>
+      <button id="sort-descending" onclick="sortDescending()">Sort Descending</button>
+      <button id="pause-resume" onclick="pauseResumeSort()">Pause</button>
+      <button id="stop" onclick="stopSort()">Stop</button>
+    </div>
+
+    <div id="complexity-box">
+      <strong>Algorithm Complexity:</strong>
+      <ul id="complexity-list" style="padding-left: 20px; margin-top: 8px;">
+        <!-- Filled dynamically -->
+      </ul>
+    </div>
+
+    <div id="bars"></div>
+
+    <script>
+      let array = [];
+      let stopRequested = false;
+      let paused = false;
+      let sortOrder = 1; // 1 for ascending, -1 for descending
+
+      const complexities = {
+        bubbleSort: {
+          name: "Bubble Sort",
+          time: "Best: O(n), Avg: O(n²), Worst: O(n²)",
+          space: "O(1)"
+        },
+        insertionSort: {
+          name: "Insertion Sort",
+          time: "Best: O(n), Avg: O(n²), Worst: O(n²)",
+          space: "O(1)"
+        },
+        selectionSort: {
+          name: "Selection Sort",
+          time: "Best: O(n²), Avg: O(n²), Worst: O(n²)",
+          space: "O(1)"
+        },
+        countingSort: {
+          name: "Counting Sort",
+          time: "Best/Average/Worst: O(n + k)",
+          space: "O(k)"
+        },
+        quickSort: {
+          name: "Quick Sort",
+          time: "Best/Average: O(n log n), Worst: O(n²)",
+          space: "O(log n)"
+        },
+        mergeSort: {
+          name: "Merge Sort",
+          time: "Best/Average/Worst: O(n log n)",
+          space: "O(n)"
+        },
+        heapSort: {
+          name: "Heap Sort",
+          time: "Best/Average/Worst: O(n log n)",
+          space: "O(1)"
+        }
+      };
+
+      function generateArray() {
+        stopRequested = true;
+        paused = false;
+        document.getElementById("pause-resume").textContent = "Pause";
+        const size = parseInt(document.getElementById("size").value);
+        array = Array.from({ length: size }, () => Math.floor(Math.random() * 201)-100);
+        document.getElementById("custom-array").value = "";
+        document.getElementById("error-message").textContent = "";
+        document.getElementById("complexity-box").classList.remove("show");
+        document.getElementById("complexity-list").innerHTML = "";
+        displayBars(array, [], "none", []);
+      }
+
+      function useCustomArray() {
+        stopRequested = true;
+        paused = false;
+        document.getElementById("pause-resume").textContent = "Pause";
+        const input = document.getElementById("custom-array").value;
+        const errorMessage = document.getElementById("error-message");
+        errorMessage.textContent = "";
+        document.getElementById("complexity-box").classList.remove("show");
+        document.getElementById("complexity-list").innerHTML = "";
+
+        if (!input) {
+          errorMessage.textContent = "Please enter a comma-separated list of numbers.";
+          return;
+        }
+
+        const parsedArray = input.split(",").map(num => {
+          const trimmed = num.trim();
+          return trimmed ? parseInt(trimmed) : NaN;
+        });
+
+        if (parsedArray.some(isNaN)) {
+          errorMessage.textContent = "Invalid input. Please enter valid numbers separated by commas.";
+          return;
+        }
+
+        const maxSize = parseInt(document.getElementById("size").max);
+        const minSize = parseInt(document.getElementById("size").min);
+        if (parsedArray.length > maxSize || parsedArray.length < minSize) {
+          errorMessage.textContent = `Array size must be between ${minSize} and ${maxSize}.`;
+          return;
+        }
+
+        array = parsedArray;
+        document.getElementById("size").value = array.length;
+        displayBars(array, [], "none", []);
+      }
+
+      function stopSort() {
+        stopRequested = true;
+        paused = false;
+        document.getElementById("pause-resume").textContent = "Pause";
+        toggleControls(false);
+        document.getElementById("complexity-box").classList.remove("show");
+        document.getElementById("complexity-list").innerHTML = "";
+      }
+
+      function pauseResumeSort() {
+        if (!stopRequested) {
+          paused = !paused;
+          document.getElementById("pause-resume").textContent = paused ? "Resume" : "Pause";
+        }
+      }
+
+      function toggleControls(disable) {
+        document.getElementById("size").disabled = disable;
+        document.getElementById("algorithm").disabled = disable;
+        document.getElementById("speed").disabled = disable;
+        document.getElementById("custom-array").disabled = disable;
+        document.getElementById("generate-random").disabled = disable;
+        document.getElementById("use-custom").disabled = disable;
+        document.getElementById("sort-ascending").disabled = disable;
+        document.getElementById("sort-descending").disabled = disable;
+        // Keep pause-resume and stop enabled during sorting
+        document.getElementById("pause-resume").disabled = !disable;
+        document.getElementById("stop").disabled = !disable;
+      }
+
+      function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+      }
+
+      async function waitWhilePaused() {
+        while (paused && !stopRequested) {
+          await sleep(100);
+        }
+      }
+
+      function compare(a, b) {
+        return sortOrder * (a - b);
+      }
+
+      function displayBars(array, highlight = [], type = "none", sortedIndices = []) {
+        const bars = document.getElementById("bars");
+        bars.innerHTML = "";
+
+        array.forEach((value, i) => {
+          const wrapper = document.createElement("div");
+          wrapper.className = "bar-wrapper";
+
+          if (highlight.includes(i)) {
+            const arrow = document.createElement("div");
+            arrow.className = "arrow " + (type === "swap" ? "swap-arrow" : "compare-arrow");
+            arrow.textContent = type === "swap" ? "🔄" : "🔍";
+            wrapper.appendChild(arrow);
+          } else {
+            wrapper.appendChild(document.createElement("div"));
+          }
+
+          const bar = document.createElement("div");
+          bar.className = "bar";
+          if (highlight.includes(i)) {
+            bar.classList.add(type);
+          } else if (sortedIndices.includes(i)) {
+            bar.classList.add("sorted");
+          }
+          bar.textContent = value;
+          wrapper.appendChild(bar);
+
+          bars.appendChild(wrapper);
+        });
+      }
+
+    async function bubbleSort(arr) {
+      const n = arr.length;
+      const speed = parseInt(document.getElementById("speed").value);
+      let sortedIndices = [];
+      for (let i = 0; i < n - 1 && !stopRequested; i++) {
+        let swapped = false;
+        for (let j = 0; j < n - i - 1 && !stopRequested; j++) {
+          await waitWhilePaused();
+          displayBars(arr, [j, j + 1], "compare", sortedIndices);
+          await sleep(speed);
+          if (compare(arr[j], arr[j + 1]) > 0) {
+            [arr[j], arr[j + 1]] = [arr[j + 1], arr[j]];
+            displayBars(arr, [j, j + 1], "swap", sortedIndices);
+            await sleep(speed);
+            swapped = true;
+          }
+        }
+        sortedIndices.push(n - i - 1);
+        if (!swapped) break;
+      }
+      sortedIndices = Array.from({ length: n }, (_, i) => i);
+      displayBars(arr, [], "none", sortedIndices);
+    }
+
+    async function insertionSort(arr) {
+      const n = arr.length;
+      const speed = parseInt(document.getElementById("speed").value);
+      let sortedIndices = [0];
+      for (let i = 1; i < n && !stopRequested; i++) {
+        let key = arr[i];
+        let j = i - 1;
+        while (j >= 0 && compare(arr[j], key) > 0 && !stopRequested) {
+          await waitWhilePaused();
+          displayBars(arr, [j, j + 1], "compare", sortedIndices);
+          await sleep(speed);
+          arr[j + 1] = arr[j];
+          displayBars(arr, [j, j + 1], "swap", sortedIndices);
+          await sleep(speed);
+          j--;
+        }
+        arr[j + 1] = key;
+        sortedIndices.push(i);
+        displayBars(arr, [], "none", sortedIndices);
+      }
+      displayBars(arr, [], "none", sortedIndices);
+    }
+
+    async function selectionSort(arr) {
+      const n = arr.length;
+      const speed = parseInt(document.getElementById("speed").value);
+      let sortedIndices = [];
+      for (let i = 0; i < n - 1 && !stopRequested; i++) {
+        let minIdx = i;
+        for (let j = i + 1; j < n && !stopRequested; j++) {
+          await waitWhilePaused();
+          displayBars(arr, [minIdx, j], "compare", sortedIndices);
+          await sleep(speed);
+          if (compare(arr[j], arr[minIdx]) < 0) minIdx = j;
+        }
+        if (minIdx !== i) {
+          [arr[i], arr[minIdx]] = [arr[minIdx], arr[i]];
+          displayBars(arr, [i, minIdx], "swap", sortedIndices);
+          await sleep(speed);
+        }
+        sortedIndices.push(i);
+      }
+      sortedIndices.push(n - 1);
+      displayBars(arr, [], "none", sortedIndices);
+    }
+
+    async function countingSort(arr) {
+      const speed = parseInt(document.getElementById("speed").value);
+      if (arr.length === 0) return;
+
+      let max = Math.max(...arr);
+      let min = Math.min(...arr);
+      let range = max - min + 1;
+
+      if (range > 1000) {
+        document.getElementById("error-message").textContent = "Counting Sort requires numbers within a reasonable range (max - min ≤ 1000).";
+        toggleControls(false);
+        return;
+      }
+
+      let count = new Array(range).fill(0);
+      let output = new Array(arr.length);
+      let sortedIndices = [];
+
+      for (let i = 0; i < arr.length && !stopRequested; i++) {
+        await waitWhilePaused();
+        count[arr[i] - min]++;
+        displayBars(arr, [i], "compare", sortedIndices);
+        await sleep(speed / 2);
+      }
+
+      for (let i = 1; i < count.length && !stopRequested; i++) {
+        count[i] += count[i - 1];
+      }
+
+      for (let i = arr.length - 1; i >= 0 && !stopRequested; i--) {
+        await waitWhilePaused();
+        output[count[arr[i] - min] - 1] = arr[i];
+        count[arr[i] - min]--;
+        sortedIndices.push(count[arr[i] - min]);
+        displayBars(output.filter(x => x !== undefined), [], "swap", sortedIndices);
+        await sleep(speed);
+      }
+
+      for (let i = 0; i < arr.length && !stopRequested; i++) {
+        await waitWhilePaused();
+        arr[i] = output[i];
+        sortedIndices = Array.from({ length: i + 1 }, (_, k) => k);
+        displayBars(arr, [], "none", sortedIndices);
+        await sleep(speed / 2);
+      }
+
+      if (sortOrder === -1) {
+        arr.reverse();
+        sortedIndices = Array.from({ length: arr.length }, (_, i) => i);
+        displayBars(arr, [], "none", sortedIndices);
+      } else {
+        sortedIndices = Array.from({ length: arr.length }, (_, i) => i);
+        displayBars(arr, [], "none", sortedIndices);
+      }
+    }
+
+    async function quickSort(arr, low = 0, high = arr.length - 1, sortedIndices = []) {
+      const speed = parseInt(document.getElementById("speed").value);
+
+      async function partition(low, high) {
+        let pivot = arr[high];
+        let i = low - 1;
+        for (let j = low; j < high && !stopRequested; j++) {
+          await waitWhilePaused();
+          displayBars(arr, [j, high], "compare", sortedIndices);
+          await sleep(speed);
+          if (compare(arr[j], pivot) < 0) {
+            i++;
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+            displayBars(arr, [i, j], "swap", sortedIndices);
+            await sleep(speed);
+          }
+        }
+        [arr[i + 1], arr[high]] = [arr[high], arr[i + 1]];
+        displayBars(arr, [i + 1, high], "swap", sortedIndices);
+        await sleep(speed);
+        return i + 1;
+      }
+
+      if (low < high && !stopRequested) {
+        let pi = await partition(low, high);
+        sortedIndices.push(pi);
+        await quickSort(arr, low, pi - 1, sortedIndices);
+        await quickSort(arr, pi + 1, high, sortedIndices);
+      }
+      if (low === 0 && high === arr.length - 1) {
+        sortedIndices = Array.from({ length: arr.length }, (_, i) => i);
+        displayBars(arr, [], "none", sortedIndices);
+      }
+    }
+
+    async function mergeSort(arr, left = 0, right = arr.length - 1, sortedIndices = []) {
+      const speed = parseInt(document.getElementById("speed").value);
+
+      async function merge(left, mid, right) {
+        let n1 = mid - left + 1;
+        let n2 = right - mid;
+
+        let L = [], R = [];
+        for (let i = 0; i < n1; i++) L[i] = arr[left + i];
+        for (let j = 0; j < n2; j++) R[j] = arr[mid + 1 + j];
+
+        let i = 0, j = 0, k = left;
+
+        while (i < n1 && j < n2 && !stopRequested) {
+          await waitWhilePaused();
+          displayBars(arr, [k], "compare", sortedIndices);
+          await sleep(speed);
+          if (compare(L[i], R[j]) <= 0) {
+            arr[k] = L[i];
+            i++;
+          } else {
+            arr[k] = R[j];
+            j++;
+          }
+          sortedIndices.push(k);
+          displayBars(arr, [k], "swap", sortedIndices);
+          await sleep(speed);
+          k++;
+        }
+
+        while (i < n1 && !stopRequested) {
+          await waitWhilePaused();
+          arr[k] = L[i];
+          sortedIndices.push(k);
+          displayBars(arr, [k], "swap", sortedIndices);
+          await sleep(speed);
+          i++;
+          k++;
+        }
+
+        while (j < n2 && !stopRequested) {
+          await waitWhilePaused();
+          arr[k] = R[j];
+          sortedIndices.push(k);
+          displayBars(arr, [k], "swap", sortedIndices);
+          await sleep(speed);
+          j++;
+          k++;
+        }
+      }
+
+      if (left < right && !stopRequested) {
+        const mid = Math.floor((left + right) / 2);
+        await mergeSort(arr, left, mid, sortedIndices);
+        await mergeSort(arr, mid + 1, right, sortedIndices);
+        await merge(left, mid, right);
+      }
+      if (left === 0 && right === arr.length - 1) {
+        sortedIndices = Array.from({ length: arr.length }, (_, i) => i);
+        displayBars(arr, [], "none", sortedIndices);
+      }
+    }
+
+    async function heapSort(arr) {
+      const n = arr.length;
+      const speed = parseInt(document.getElementById("speed").value);
+      let sortedIndices = [];
+
+      // Helper function to heapify a subtree rooted with node i
+      async function heapify(arr, n, i) {
+        let largest = i; // Initialize largest as root
+        let left = 2 * i + 1; // left child
+        let right = 2 * i + 2; // right child
+
+        // If left child is larger than root
+        if (left < n) {
+          await waitWhilePaused();
+          displayBars(arr, [largest, left], "compare", sortedIndices);
+          await sleep(speed);
+          if (compare(arr[left], arr[largest]) > 0) {
+            largest = left;
+          }
+        }
+
+        // If right child is larger than largest so far
+        if (right < n) {
+          await waitWhilePaused();
+          displayBars(arr, [largest, right], "compare", sortedIndices);
+          await sleep(speed);
+          if (compare(arr[right], arr[largest]) > 0) {
+            largest = right;
+          }
+        }
+
+        // If largest is not root
+        if (largest !== i && !stopRequested) {
+          [arr[i], arr[largest]] = [arr[largest], arr[i]];
+          displayBars(arr, [i, largest], "swap", sortedIndices);
+          await sleep(speed);
+
+          // Recursively heapify the affected sub-tree
+          await heapify(arr, n, largest);
+        }
+      }
+
+      // Build heap (rearrange array)
+      for (let i = Math.floor(n / 2) - 1; i >= 0 && !stopRequested; i--) {
+        await heapify(arr, n, i);
+      }
+
+      // One by one extract an element from heap
+      for (let i = n - 1; i > 0 && !stopRequested; i--) {
+        // Move current root to end
+        [arr[0], arr[i]] = [arr[i], arr[0]];
+        displayBars(arr, [0, i], "swap", sortedIndices);
+        await sleep(speed);
+        
+        // Add the sorted element to sortedIndices
+        sortedIndices.push(i);
+
+        // Call max heapify on the reduced heap
+        await heapify(arr, i, 0);
+      }
+
+      // Add the first element (which is now sorted) to sortedIndices
+      sortedIndices.push(0);
+      sortedIndices = Array.from({ length: n }, (_, i) => i);
+      displayBars(arr, [], "none", sortedIndices);
+    }
+
+    async function sort() {
+      stopRequested = false;
+      paused = false;
+      document.getElementById("pause-resume").textContent = "Pause";
+      toggleControls(true);
+      const algorithm = document.getElementById("algorithm").value;
+
+      // Analyze input array for likely case
+      let caseMessage = "";
+      const isAscending = array.every((val, i) => i === 0 || val >= array[i-1]);
+      const isDescending = array.every((val, i) => i === 0 || val <= array[i-1]);
+      if (isAscending && sortOrder === 1 || isDescending && sortOrder === -1) {
+        caseMessage = (algorithm === "bubbleSort" || algorithm === "insertionSort") ? " (Likely Best Case)" : "";
+      } else if (isDescending && sortOrder === 1 || isAscending && sortOrder === -1) {
+        caseMessage = (algorithm === "bubbleSort" || algorithm === "insertionSort" || algorithm === "quickSort") ? " (Likely Worst Case)" : "";
+      } else {
+        caseMessage = " (Likely Average Case)";
+      }
+
+      updateComplexityBox(algorithm, caseMessage);
+      await window[algorithm](array);
+      toggleControls(false);
+    }
+
+    function sortAscending() {
+      sortOrder = 1;
+      sort();
+    }
+
+    function sortDescending() {
+      sortOrder = -1;
+      sort();
+    }
+
+    function updateComplexityBox(selectedAlgo, caseMessage = "") {
+      const list = document.getElementById("complexity-list");
+      list.innerHTML = "";
+      const complexityBox = document.getElementById("complexity-box");
+
+      if (selectedAlgo && complexities[selectedAlgo]) {
+        const li = document.createElement("li");
+        li.style.marginBottom = "8px";
+        li.innerHTML = `<strong>${complexities[selectedAlgo].name}${caseMessage}</strong><br>
+                        Time Complexity: ${complexities[selectedAlgo].time}<br>
+                        Space Complexity: ${complexities[selectedAlgo].space}`;
+        li.style.color = "#fdd835";
+        list.appendChild(li);
+        complexityBox.classList.add("show");
+      } else {
+        complexityBox.classList.remove("show");
+      }
+    }
+
+    document.getElementById("algorithm").addEventListener("change", () => {
+      document.getElementById("complexity-box").classList.remove("show");
+      document.getElementById("complexity-list").innerHTML = "";
+    });
+
+    generateArray();
+  </script>
+</body>
+</html>
