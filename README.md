@@ -45,4 +45,3 @@ An interactive, web-based tool that demonstrates the working of various sorting 
 
 - Understand the internal working of sorting algorithms
 - Improve visualization and algorithm design skills
-- Learn DOM manipulation and frontend development
